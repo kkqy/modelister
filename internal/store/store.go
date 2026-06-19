@@ -71,6 +71,9 @@ func migrate(db *sql.DB) error {
 }
 
 func WithTx(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
