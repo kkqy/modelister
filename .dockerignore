@@ -1,0 +1,6 @@
+.git
+docs/superpowers
+*.db
+*.db-shm
+*.db-wal
+modelister.test
