@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrInvalid = errors.New("invalid provider request")
+	ErrInvalid  = errors.New("invalid provider request")
 	ErrNotFound = errors.New("provider resource not found")
 )
 
