@@ -18,7 +18,7 @@ func TestRepositoryCreatesProviderWithNote(t *testing.T) {
 		Name:    "OpenAI",
 		BaseURL: "https://api.openai.com/",
 		Note:    "主供应商",
-		Enabled: true,
+		Enabled: boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -31,6 +31,30 @@ func TestRepositoryCreatesProviderWithNote(t *testing.T) {
 	}
 }
 
+func TestRepositoryDefaultsCreatedProviderAndKeyToEnabled(t *testing.T) {
+	db, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	repo := NewRepository(db)
+	p, err := repo.CreateProvider(CreateProviderRequest{Name: "P", BaseURL: "https://example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Enabled {
+		t.Fatal("provider should default to enabled")
+	}
+	k, err := repo.CreateKey(p.ID, CreateKeyRequest{Name: "K", APIKey: "sk-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !k.Enabled {
+		t.Fatal("key should default to enabled")
+	}
+}
+
 func TestRepositoryMasksKey(t *testing.T) {
 	db, err := store.Open(":memory:")
 	if err != nil {
@@ -39,11 +63,11 @@ func TestRepositoryMasksKey(t *testing.T) {
 	defer db.Close()
 
 	repo := NewRepository(db)
-	p, err := repo.CreateProvider(CreateProviderRequest{Name: "P", BaseURL: "https://example.com", Enabled: true})
+	p, err := repo.CreateProvider(CreateProviderRequest{Name: "P", BaseURL: "https://example.com", Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	k, err := repo.CreateKey(p.ID, CreateKeyRequest{Name: "K", APIKey: "sk-abcdef123456", Note: "备用", Enabled: true})
+	k, err := repo.CreateKey(p.ID, CreateKeyRequest{Name: "K", APIKey: "sk-abcdef123456", Note: "备用", Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,4 +77,8 @@ func TestRepositoryMasksKey(t *testing.T) {
 	if k.APIKeyMasked != "sk-...3456" {
 		t.Fatalf("masked key = %q", k.APIKeyMasked)
 	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }

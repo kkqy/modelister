@@ -28,7 +28,7 @@ func (r *Repository) CreateProvider(req CreateProviderRequest) (Provider, error)
 	}
 	res, err := r.db.Exec(
 		`insert into providers (name, base_url, note, enabled) values (?, ?, ?, ?)`,
-		name, baseURL, note, boolInt(req.Enabled),
+		name, baseURL, note, boolInt(defaultTrue(req.Enabled)),
 	)
 	if err != nil {
 		return Provider{}, err
@@ -105,7 +105,7 @@ func (r *Repository) CreateKey(providerID int64, req CreateKeyRequest) (Provider
 	}
 	res, err := r.db.Exec(
 		`insert into provider_keys (provider_id, name, api_key, note, enabled) values (?, ?, ?, ?, ?)`,
-		providerID, name, apiKey, note, boolInt(req.Enabled),
+		providerID, name, apiKey, note, boolInt(defaultTrue(req.Enabled)),
 	)
 	if err != nil {
 		return ProviderKey{}, err
@@ -274,6 +274,13 @@ func boolInt(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+func defaultTrue(v *bool) bool {
+	if v == nil {
+		return true
+	}
+	return *v
 }
 
 func ensureAffected(res sql.Result) error {

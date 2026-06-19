@@ -18,12 +18,12 @@ func TestSearchDefaultsToByKey(t *testing.T) {
 	defer db.Close()
 
 	providerRepo := providers.NewRepository(db)
-	p, err := providerRepo.CreateProvider(providers.CreateProviderRequest{Name: "P", BaseURL: "https://example.com", Note: "供应商备注", Enabled: true})
+	p, err := providerRepo.CreateProvider(providers.CreateProviderRequest{Name: "P", BaseURL: "https://example.com", Note: "供应商备注", Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	k1, _ := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K1", APIKey: "sk-1", Note: "第一个", Enabled: true})
-	k2, _ := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K2", APIKey: "sk-2", Note: "第二个", Enabled: true})
+	k1, _ := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K1", APIKey: "sk-1", Note: "第一个", Enabled: boolPtr(true)})
+	k2, _ := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K2", APIKey: "sk-2", Note: "第二个", Enabled: boolPtr(true)})
 
 	repo := NewRepository(db)
 	if err := repo.ReplaceKeyModels(p.ID, k1.ID, []Model{{ID: "gpt-4o"}}); err != nil {

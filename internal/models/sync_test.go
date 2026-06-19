@@ -26,11 +26,11 @@ func TestSyncKeyCachesModelsAndClearsError(t *testing.T) {
 	defer db.Close()
 
 	providerRepo := providers.NewRepository(db)
-	p, err := providerRepo.CreateProvider(providers.CreateProviderRequest{Name: "P", BaseURL: upstream.URL, Enabled: true})
+	p, err := providerRepo.CreateProvider(providers.CreateProviderRequest{Name: "P", BaseURL: upstream.URL, Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	k, err := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K", APIKey: "sk-test", Enabled: true})
+	k, err := providerRepo.CreateKey(p.ID, providers.CreateKeyRequest{Name: "K", APIKey: "sk-test", Enabled: boolPtr(true)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,4 +52,8 @@ func TestSyncKeyCachesModelsAndClearsError(t *testing.T) {
 	if groups[0].Keys[0].Models[0].ID != "gpt-4o" {
 		t.Fatalf("unexpected model: %+v", groups[0].Keys[0].Models[0])
 	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }

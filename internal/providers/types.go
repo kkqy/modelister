@@ -33,7 +33,7 @@ type CreateProviderRequest struct {
 	Name    string `json:"name"`
 	BaseURL string `json:"base_url"`
 	Note    string `json:"note"`
-	Enabled bool   `json:"enabled"`
+	Enabled *bool  `json:"enabled"`
 }
 
 type UpdateProviderRequest struct {
@@ -47,7 +47,7 @@ type CreateKeyRequest struct {
 	Name    string `json:"name"`
 	APIKey  string `json:"api_key"`
 	Note    string `json:"note"`
-	Enabled bool   `json:"enabled"`
+	Enabled *bool  `json:"enabled"`
 }
 
 type UpdateKeyRequest struct {
