@@ -1,0 +1,4 @@
+# 前端构建产物由 ./frontend 下的 `npm run build` 生成，并在 Go 构建时嵌入。
+# 构建产物不提交到 git，但保留 dist 目录用于 //go:embed。
+/dist/*
+!/dist/.gitkeep

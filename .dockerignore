@@ -4,3 +4,9 @@ docs/superpowers
 *.db-shm
 *.db-wal
 modelister.test
+models.test.exe
+*.exe
+frontend/node_modules
+frontend/dist
+internal/webui/dist/assets
+internal/webui/dist/index.html

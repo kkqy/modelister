@@ -2,7 +2,7 @@
 
 Modelister 是一个 OpenAI 兼容供应商模型管理后端。它可以通过 Docker 部署到服务器，使用 SQLite 保存供应商、Key 和模型缓存。
 
-第一版只提供后端 API，不包含前端页面。前端对接说明见 [docs/frontend-api.md](docs/frontend-api.md)。
+后端提供 REST API（见 [docs/frontend-api.md](docs/frontend-api.md)），并内置一个 React 管理控制台。前端源码在 [`frontend/`](frontend/)，构建产物会被 Go 二进制通过 `//go:embed` 嵌入，与 `/api` 同源托管，单容器即可运行。
 
 ## 功能
 
@@ -40,3 +40,18 @@ docker run --rm -p 8080:8080 -v modelister-data:/data `
 ```powershell
 go test ./...
 ```
+
+## 前端开发
+
+前端是 Vite + React 项目，位于 `frontend/`。
+
+```powershell
+cd frontend
+npm install
+npm run dev      # 开发服务器，默认 http://localhost:5173，自动把 /api 代理到 :8080
+npm run build    # 构建产物输出到 ../internal/webui/dist，供 Go 嵌入
+```
+
+开发时需要同时运行后端（`go run ./cmd/modelister`，记得设置环境变量）。如需指向非默认后端地址，设置 `MODELISTER_BACKEND` 环境变量后再运行 `npm run dev`。
+
+修改前端后，先 `npm run build` 再 `go build` / 重启服务，嵌入的页面才会更新。Docker 镜像会在构建阶段自动执行前端构建，无需手动操作。

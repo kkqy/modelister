@@ -1,0 +1,8 @@
+# 依赖目录
+node_modules/
+
+# Vite 缓存
+.vite/
+
+# 本地环境覆盖配置
+.env.local

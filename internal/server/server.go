@@ -9,7 +9,7 @@ import (
 	"modelister/internal/providers"
 )
 
-func New(authManager *auth.Manager, providerHandler *providers.Handler, modelHandler *models.Handler) http.Handler {
+func New(authManager *auth.Manager, providerHandler *providers.Handler, modelHandler *models.Handler, staticHandler http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -34,5 +34,11 @@ func New(authManager *auth.Manager, providerHandler *providers.Handler, modelHan
 	protected.HandleFunc("POST /api/models/sync", modelHandler.SyncAll)
 
 	mux.Handle("/api/", authManager.RequireAuth(protected))
+
+	// 静态前端：catch-all，/healthz 与 /api/ 因更具体而优先匹配。
+	// 测试中可传 nil 以跳过静态资源挂载。
+	if staticHandler != nil {
+		mux.Handle("/", staticHandler)
+	}
 	return mux
 }

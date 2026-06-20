@@ -10,6 +10,7 @@ import (
 	"modelister/internal/providers"
 	"modelister/internal/server"
 	"modelister/internal/store"
+	"modelister/internal/webui"
 )
 
 func main() {
@@ -32,6 +33,7 @@ func main() {
 		auth.NewManager(cfg.AdminUsername, cfg.AdminPassword, cfg.SessionSecret),
 		providers.NewHandler(providerRepo),
 		models.NewHandler(modelRepo, syncService),
+		webui.Handler(),
 	)
 
 	log.Printf("Modelister listening on %s", cfg.HTTPAddr)
