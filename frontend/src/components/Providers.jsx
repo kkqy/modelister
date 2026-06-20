@@ -8,6 +8,7 @@ import ProviderCard from "./ProviderCard.jsx";
 export default function Providers({ toast, onUnauthorized }) {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
 
@@ -19,15 +20,23 @@ export default function Providers({ toast, onUnauthorized }) {
     [onUnauthorized, toast]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const res = await api.listProviders();
       setProviders(res.providers || []);
     } catch (err) {
       handleError(err);
     } finally {
-      setLoading(false);
+      if (silent) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [handleError]);
 
@@ -37,10 +46,11 @@ export default function Providers({ toast, onUnauthorized }) {
 
   const create = async (payload) => {
     try {
-      await api.createProvider(payload);
+      const created = await api.createProvider(payload);
+      setProviders((items) => [...items, created]);
       toast.success("供应商已创建");
       setCreating(false);
-      load();
+      load({ silent: true });
     } catch (err) {
       handleError(err);
     }
@@ -65,6 +75,7 @@ export default function Providers({ toast, onUnauthorized }) {
         <div>
           <h2>供应商</h2>
           <p className="panel-sub">管理 OpenAI 兼容供应商及其 API Key</p>
+          {refreshing && <p className="panel-sub">正在刷新供应商列表…</p>}
         </div>
         <div className="panel-actions">
           <button className="btn" onClick={syncAll} disabled={syncingAll}>
