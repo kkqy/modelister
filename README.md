@@ -22,7 +22,27 @@ Modelister 是一个 OpenAI 兼容供应商模型管理后端。它可以通过 
 - `APP_DATABASE_PATH`：SQLite 路径，默认 `/data/modelister.db`。
 - `APP_HTTP_ADDR`：监听地址，默认 `:8080`。
 
-## Docker 运行
+## 使用预构建镜像部署
+
+推送到 `master` 后，GitHub Actions 会自动构建 `linux/amd64` 和 `linux/arm64` 镜像，并推送到 GitHub Container Registry：
+
+```text
+ghcr.io/kkqy/modelister:latest
+```
+
+服务器上推荐使用仓库内的 `docker-compose.yml` 模板部署：
+
+```powershell
+Copy-Item .env.example .env
+# 编辑 .env，至少改掉 APP_ADMIN_PASSWORD 和 APP_SESSION_SECRET
+docker compose up -d
+```
+
+`docker-compose.yml` 默认把服务暴露到宿主机 `8080` 端口，并把 SQLite 数据保存在 `modelister-data` Docker volume 中。
+
+如果服务器拉取镜像时提示无权限，请在 GitHub 仓库的 Packages 页面把 `modelister` 镜像可见性设为 Public，或先在服务器执行 `docker login ghcr.io`。
+
+## 本地构建运行
 
 ```powershell
 docker build -t modelister .

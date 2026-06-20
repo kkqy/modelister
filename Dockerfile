@@ -15,7 +15,9 @@ RUN go mod download
 COPY . .
 # 拷入刚构建出的前端资源，供 //go:embed 嵌入。
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/modelister ./cmd/modelister
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /out/modelister ./cmd/modelister
 
 # --- 阶段 3：运行时镜像 ---
 FROM debian:bookworm-slim

@@ -1,0 +1,18 @@
+services:
+  modelister:
+    image: ghcr.io/kkqy/modelister:latest
+    container_name: modelister
+    restart: unless-stopped
+    ports:
+      - "${MODELISTER_PORT:-8080}:8080"
+    environment:
+      APP_ADMIN_USERNAME: "${APP_ADMIN_USERNAME:?请在 .env 中设置 APP_ADMIN_USERNAME}"
+      APP_ADMIN_PASSWORD: "${APP_ADMIN_PASSWORD:?请在 .env 中设置 APP_ADMIN_PASSWORD}"
+      APP_SESSION_SECRET: "${APP_SESSION_SECRET:?请在 .env 中设置 APP_SESSION_SECRET}"
+      APP_DATABASE_PATH: /data/modelister.db
+      APP_HTTP_ADDR: :8080
+    volumes:
+      - modelister-data:/data
+
+volumes:
+  modelister-data:
