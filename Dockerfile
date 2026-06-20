@@ -21,7 +21,11 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/modelister ./cmd/mode
 FROM debian:bookworm-slim
 
 WORKDIR /app
-RUN mkdir -p /data
+# OpenAI 兼容接口通常走 HTTPS；运行时镜像需要系统 CA 证书供 Go 校验证书链。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data
 COPY --from=build /out/modelister /app/modelister
 EXPOSE 8080
 ENV APP_DATABASE_PATH=/data/modelister.db
