@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { Spinner } from "./ui.jsx";
 import { summarizeSync } from "../format.js";
@@ -11,14 +11,17 @@ export default function Providers({ toast, onUnauthorized }) {
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
+  const toastRef = useRef(toast);
+  const onUnauthorizedRef = useRef(onUnauthorized);
 
-  const handleError = useCallback(
-    (err) => {
-      if (err && err.status === 401) return onUnauthorized();
-      toast.error(err.message || "操作失败");
-    },
-    [onUnauthorized, toast]
-  );
+  // 保持回调稳定，避免操作后的 toast 状态更新触发供应商列表重新加载。
+  toastRef.current = toast;
+  onUnauthorizedRef.current = onUnauthorized;
+
+  const handleError = useCallback((err) => {
+    if (err && err.status === 401) return onUnauthorizedRef.current();
+    toastRef.current.error(err.message || "操作失败");
+  }, []);
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (silent) {

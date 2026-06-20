@@ -91,4 +91,26 @@ describe("Providers", () => {
       expect(screen.getByLabelText("API Key")).toBeInTheDocument();
     });
   });
+
+  it("toast 状态导致父组件重新渲染时不会重新加载供应商列表", async () => {
+    api.listProviders.mockResolvedValue({ providers: [] });
+
+    const { rerender } = render(<Providers toast={toast} onUnauthorized={vi.fn()} />);
+
+    await screen.findByText("还没有供应商，点击「新建供应商」开始。");
+    expect(api.listProviders).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <Providers
+        toast={{
+          success: vi.fn(),
+          error: vi.fn(),
+        }}
+        onUnauthorized={vi.fn()}
+      />
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(api.listProviders).toHaveBeenCalledTimes(1);
+  });
 });
