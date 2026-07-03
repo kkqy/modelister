@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import ProviderForm from "./ProviderForm.jsx";
 import KeyForm from "./KeyForm.jsx";
 import KeyRow from "./KeyRow.jsx";
+import ProviderUrlLink from "./ProviderUrlLink.jsx";
 import { ConfirmButton } from "./ui.jsx";
 import { summarizeSync } from "../format.js";
 
@@ -143,7 +144,7 @@ export default function ProviderCard({ provider, toast, onUnauthorized, onChange
         </div>
       </div>
       <div className="provider-sub">
-        <code>{provider.base_url}</code>
+        <ProviderUrlLink url={provider.base_url} />
         {provider.note && <span className="provider-note">{provider.note}</span>}
       </div>
 

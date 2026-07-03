@@ -1,4 +1,5 @@
 import { formatTime } from "../format.js";
+import ProviderUrlLink from "./ProviderUrlLink.jsx";
 
 // 单个模型条目。
 function ModelChip({ model }) {
@@ -35,7 +36,7 @@ export default function ModelTree({ mode, providers }) {
         <div className="model-provider" key={p.id}>
           <div className="model-provider-head">
             <span className="provider-name">{p.name}</span>
-            <code className="provider-url">{p.base_url}</code>
+            <ProviderUrlLink url={p.base_url} className="provider-url" />
             {p.note && <span className="provider-note">{p.note}</span>}
           </div>
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import { formatTime } from "../format.js";
+import ProviderUrlLink from "./ProviderUrlLink.jsx";
 import { Spinner } from "./ui.jsx";
 
 const PAGE_SIZE = 20;
@@ -42,7 +43,7 @@ function ChangeEventItem({ event }) {
           </time>
         </div>
         <div className="timeline-meta">
-          <code>{event.base_url}</code>
+          <ProviderUrlLink url={event.base_url} />
         </div>
         <div className="change-summary">
           <span className="change-pill change-pill-added">+{event.added_count} 新增</span>
