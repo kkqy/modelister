@@ -268,6 +268,45 @@
 
 同步所有启用供应商下的所有启用 Key。
 
+每次 Key 同步成功后，后端会把新返回的模型 ID 集合与同步前缓存的模型 ID 集合比较。只要存在新增或移除模型，就会写入一条模型变动记录；模型 ID 集合完全一致时不会重复写记录。首次从空缓存同步到非空列表会记录为新增模型。
+
+## 模型变动记录 API
+
+### 时间轴分页查询
+
+`GET /api/model-changes`
+
+查询参数：
+
+- `limit`：每页数量，默认 `20`，取值范围 `1` 到 `100`。
+- `before_id`：可选。传入上一页响应的 `next_before_id` 后，按从新到旧继续加载更早记录。
+
+响应按 `id` 从大到小返回，不提供全量读取接口，管理后台应按需加载下一页。
+
+```json
+{
+  "events": [
+    {
+      "id": 12,
+      "provider_id": 1,
+      "key_id": 3,
+      "provider_name": "OpenAI",
+      "key_name": "生产 Key",
+      "base_url": "https://api.openai.com",
+      "added_count": 1,
+      "removed_count": 2,
+      "added_models": ["gpt-4.1"],
+      "removed_models": ["gpt-4o", "gpt-4o-mini"],
+      "created_at": "2026-06-20T10:05:00.000Z"
+    }
+  ],
+  "has_more": true,
+  "next_before_id": 12
+}
+```
+
+`provider_name`、`key_name` 和 `base_url` 是写入事件时的快照，用于后台时间轴展示。当前比较口径是模型 ID 集合的新增/移除，不比较 `owned_by` 或原始模型 JSON 的元数据变化。
+
 ## 模型列表 API
 
 ### 默认按 Key 分组
@@ -397,4 +436,3 @@
 搜索也支持汇总模式：
 
 `GET /api/models/search?q=gpt&mode=merged`
-

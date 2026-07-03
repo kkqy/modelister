@@ -58,9 +58,24 @@ func migrate(db *sql.DB) error {
 			updated_at text not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 			unique(provider_key_id, model_id)
 		)`,
+		`create table if not exists model_change_events (
+			id integer primary key autoincrement,
+			provider_id integer not null,
+			provider_key_id integer not null,
+			provider_name text not null,
+			key_name text not null,
+			base_url text not null,
+			added_count integer not null default 0,
+			removed_count integer not null default 0,
+			added_models text not null default '[]',
+			removed_models text not null default '[]',
+			created_at text not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+		)`,
 		`create index if not exists idx_provider_keys_provider_id on provider_keys(provider_id)`,
 		`create index if not exists idx_model_cache_provider_key_id on model_cache(provider_key_id)`,
 		`create index if not exists idx_model_cache_model_id on model_cache(model_id)`,
+		`create index if not exists idx_model_change_events_id on model_change_events(id)`,
+		`create index if not exists idx_model_change_events_provider_key_id on model_change_events(provider_key_id)`,
 	}
 	for _, stmt := range statements {
 		if _, err := db.Exec(stmt); err != nil {

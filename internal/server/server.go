@@ -32,6 +32,7 @@ func New(authManager *auth.Manager, providerHandler *providers.Handler, modelHan
 	protected.HandleFunc("GET /api/models", modelHandler.List)
 	protected.HandleFunc("GET /api/models/search", modelHandler.Search)
 	protected.HandleFunc("POST /api/models/sync", modelHandler.SyncAll)
+	protected.HandleFunc("GET /api/model-changes", modelHandler.ListChangeEvents)
 
 	mux.Handle("/api/", authManager.RequireAuth(protected))
 

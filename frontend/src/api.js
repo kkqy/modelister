@@ -93,4 +93,11 @@ export const api = {
     if (refresh) params.set("refresh", "true");
     return request(`/models/search?${params.toString()}`);
   },
+
+  // 模型变动记录
+  listModelChanges: ({ limit = 20, beforeId } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (beforeId) params.set("before_id", String(beforeId));
+    return request(`/model-changes?${params.toString()}`);
+  },
 };

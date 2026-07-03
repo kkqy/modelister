@@ -54,6 +54,23 @@ func (h *Handler) SyncAll(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"results": h.sync.SyncAll()})
 }
 
+func (h *Handler) ListChangeEvents(w http.ResponseWriter, r *http.Request) {
+	limit, ok := intQuery(w, r, "limit", 20, 1, 100)
+	if !ok {
+		return
+	}
+	beforeID, ok := int64Query(w, r, "before_id", 0)
+	if !ok {
+		return
+	}
+	resp, err := h.repo.ListChangeEvents(limit, beforeID)
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "读取模型变动记录失败")
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, resp)
+}
+
 func (h *Handler) SyncProvider(w http.ResponseWriter, r *http.Request) {
 	if h.sync == nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "同步服务未初始化")
@@ -129,4 +146,30 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+func intQuery(w http.ResponseWriter, r *http.Request, name string, fallback, min, max int) (int, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get(name))
+	if raw == "" {
+		return fallback, true
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < min || value > max {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", name+" 参数无效")
+		return 0, false
+	}
+	return value, true
+}
+
+func int64Query(w http.ResponseWriter, r *http.Request, name string, fallback int64) (int64, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get(name))
+	if raw == "" {
+		return fallback, true
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value <= 0 {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", name+" 参数无效")
+		return 0, false
+	}
+	return value, true
 }

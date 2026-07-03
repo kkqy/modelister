@@ -12,7 +12,7 @@ func TestOpenInitializesSchema(t *testing.T) {
 	}
 	defer db.Close()
 
-	tables := []string{"providers", "provider_keys", "model_cache"}
+	tables := []string{"providers", "provider_keys", "model_cache", "model_change_events"}
 	for _, table := range tables {
 		var name string
 		err := db.QueryRow(`select name from sqlite_master where type='table' and name=?`, table).Scan(&name)

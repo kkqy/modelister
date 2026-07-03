@@ -4,6 +4,7 @@ import { Toast, useToast, Spinner } from "./components/ui.jsx";
 import Login from "./components/Login.jsx";
 import Providers from "./components/Providers.jsx";
 import Models from "./components/Models.jsx";
+import ModelChanges from "./components/ModelChanges.jsx";
 
 export default function App() {
   const [authState, setAuthState] = useState("loading"); // loading | out | in
@@ -82,6 +83,12 @@ export default function App() {
           >
             模型
           </button>
+          <button
+            className={tab === "changes" ? "tab tab-active" : "tab"}
+            onClick={() => setTab("changes")}
+          >
+            变动记录
+          </button>
         </nav>
         <div className="app-user">
           <span className="app-username">{username}</span>
@@ -92,10 +99,12 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {tab === "providers" ? (
+        {tab === "providers" && (
           <Providers toast={toast} onUnauthorized={() => setAuthState("out")} />
-        ) : (
-          <Models toast={toast} onUnauthorized={() => setAuthState("out")} />
+        )}
+        {tab === "models" && <Models toast={toast} onUnauthorized={() => setAuthState("out")} />}
+        {tab === "changes" && (
+          <ModelChanges toast={toast} onUnauthorized={() => setAuthState("out")} />
         )}
       </main>
 
