@@ -7,6 +7,35 @@ import { Spinner } from "./ui.jsx";
 const PAGE_SIZE = 20;
 const MODEL_PREVIEW_LIMIT = 24;
 
+function groupChangeEvents(events) {
+  const groups = [];
+  const indexByProvider = new Map();
+
+  for (const event of events) {
+    const groupKey = String(event.provider_id || event.provider_name || event.base_url || "unknown");
+    let group = indexByProvider.get(groupKey);
+    if (!group) {
+      group = {
+        key: groupKey,
+        provider_name: event.provider_name,
+        base_url: event.base_url,
+        created_at: event.created_at,
+        added_count: 0,
+        removed_count: 0,
+        events: [],
+      };
+      groups.push(group);
+      indexByProvider.set(groupKey, group);
+    }
+
+    group.added_count += event.added_count || 0;
+    group.removed_count += event.removed_count || 0;
+    group.events.push(event);
+  }
+
+  return groups;
+}
+
 function ChangeModelList({ title, models, count, tone }) {
   if (!count) return null;
 
@@ -28,40 +57,62 @@ function ChangeModelList({ title, models, count, tone }) {
   );
 }
 
-function ChangeEventItem({ event }) {
+function ChangeEventDetail({ event }) {
+  return (
+    <div className="change-key-event">
+      <div className="change-key-head">
+        <span className="timeline-key">{event.key_name}</span>
+        <time className="timeline-time" dateTime={event.created_at}>
+          {formatTime(event.created_at)}
+        </time>
+      </div>
+      <div className="change-summary">
+        <span className="change-pill change-pill-added">+{event.added_count} 新增</span>
+        <span className="change-pill change-pill-removed">-{event.removed_count} 移除</span>
+      </div>
+      <div className="change-models">
+        <ChangeModelList
+          title="新增模型"
+          models={event.added_models}
+          count={event.added_count}
+          tone="added"
+        />
+        <ChangeModelList
+          title="移除模型"
+          models={event.removed_models}
+          count={event.removed_count}
+          tone="removed"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ChangeProviderGroup({ group }) {
   return (
     <article className="timeline-item">
       <div className="timeline-dot" aria-hidden="true" />
       <div className="timeline-content">
         <div className="timeline-head">
           <div className="timeline-title">
-            <h3>{event.provider_name}</h3>
-            <span className="timeline-key">{event.key_name}</span>
+            <h3>{group.provider_name}</h3>
+            <span className="timeline-key">{group.events.length} 条 Key 变动</span>
           </div>
-          <time className="timeline-time" dateTime={event.created_at}>
-            {formatTime(event.created_at)}
+          <time className="timeline-time" dateTime={group.created_at}>
+            最近 {formatTime(group.created_at)}
           </time>
         </div>
         <div className="timeline-meta">
-          <ProviderUrlLink url={event.base_url} />
+          <ProviderUrlLink url={group.base_url} />
         </div>
         <div className="change-summary">
-          <span className="change-pill change-pill-added">+{event.added_count} 新增</span>
-          <span className="change-pill change-pill-removed">-{event.removed_count} 移除</span>
+          <span className="change-pill change-pill-added">+{group.added_count} 新增</span>
+          <span className="change-pill change-pill-removed">-{group.removed_count} 移除</span>
         </div>
-        <div className="change-models">
-          <ChangeModelList
-            title="新增模型"
-            models={event.added_models}
-            count={event.added_count}
-            tone="added"
-          />
-          <ChangeModelList
-            title="移除模型"
-            models={event.removed_models}
-            count={event.removed_count}
-            tone="removed"
-          />
+        <div className="change-key-events">
+          {group.events.map((event) => (
+            <ChangeEventDetail event={event} key={event.id} />
+          ))}
         </div>
       </div>
     </article>
@@ -135,8 +186,8 @@ export default function ModelChanges({ toast, onUnauthorized }) {
       ) : (
         <>
           <div className="timeline">
-            {events.map((event) => (
-              <ChangeEventItem event={event} key={event.id} />
+            {groupChangeEvents(events).map((group) => (
+              <ChangeProviderGroup group={group} key={group.key} />
             ))}
           </div>
           {hasMore && (
