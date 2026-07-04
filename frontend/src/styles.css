@@ -679,11 +679,27 @@ input:focus {
   gap: 8px;
   margin-top: 12px;
 }
+.change-summary-total {
+  padding-top: 2px;
+}
 .change-pill {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 3px 9px;
   font-size: 12px;
+}
+.change-pill-total {
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.change-pill-provider {
+  padding: 2px 8px;
+}
+.change-pill-key {
+  padding: 1px 7px;
+  font-size: 11px;
+  background: var(--bg);
 }
 .change-pill-added {
   color: #8fe0b0;
@@ -698,29 +714,43 @@ input:focus {
 .change-key-events {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 12px;
+  padding-left: 12px;
 }
 .change-provider-groups {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 14px;
+  gap: 18px;
+  margin-top: 18px;
 }
 .change-provider-group {
   border-top: 1px solid var(--border-soft);
-  padding-top: 14px;
+  border-left: 2px solid #3a4055;
+  padding-top: 16px;
+  padding-left: 12px;
 }
 .change-provider-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
+.change-provider-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.change-provider-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
 .change-key-event {
-  border-top: 1px solid var(--border-soft);
-  padding-top: 12px;
+  border-top: 1px dashed var(--border-soft);
+  padding-top: 10px;
 }
 .change-provider-group .change-key-event:first-child {
   border-top: none;
@@ -729,15 +759,27 @@ input:focus {
 .change-key-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+.change-key-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.change-key-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 .change-models {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 9px;
 }
 .change-model-title {
   margin-bottom: 6px;

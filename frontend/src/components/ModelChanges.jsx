@@ -32,14 +32,20 @@ function ChangeEventDetail({ event }) {
   return (
     <div className="change-key-event">
       <div className="change-key-head">
-        <span className="timeline-key">{event.key_name}</span>
-        <time className="timeline-time" dateTime={event.created_at}>
-          {formatTime(event.created_at)}
-        </time>
-      </div>
-      <div className="change-summary">
-        <span className="change-pill change-pill-added">+{event.added_count} 新增</span>
-        <span className="change-pill change-pill-removed">-{event.removed_count} 移除</span>
+        <div className="change-key-title">
+          <span className="timeline-key">{event.key_name}</span>
+          <time className="timeline-time" dateTime={event.created_at}>
+            {formatTime(event.created_at)}
+          </time>
+        </div>
+        <div className="change-key-summary">
+          <span className="change-pill change-pill-key change-pill-added">
+            +{event.added_count} 新增
+          </span>
+          <span className="change-pill change-pill-key change-pill-removed">
+            -{event.removed_count} 移除
+          </span>
+        </div>
       </div>
       <div className="change-models">
         <ChangeModelList
@@ -65,15 +71,21 @@ function ChangeProviderGroup({ provider }) {
   return (
     <section className="change-provider-group">
       <div className="change-provider-head">
-        <div className="timeline-title">
-          <h4>{provider.provider_name}</h4>
-          <span className="timeline-key">{keys.length} 条 Key 变动</span>
+        <div className="change-provider-main">
+          <div className="timeline-title">
+            <h4>{provider.provider_name}</h4>
+            <span className="timeline-key">{keys.length} 条 Key 变动</span>
+          </div>
+          <div className="change-provider-summary">
+            <span className="change-pill change-pill-provider change-pill-added">
+              +{provider.added_count} 新增
+            </span>
+            <span className="change-pill change-pill-provider change-pill-removed">
+              -{provider.removed_count} 移除
+            </span>
+          </div>
         </div>
         <ProviderUrlLink url={provider.base_url} />
-      </div>
-      <div className="change-summary">
-        <span className="change-pill change-pill-added">+{provider.added_count} 新增</span>
-        <span className="change-pill change-pill-removed">-{provider.removed_count} 移除</span>
       </div>
       <div className="change-key-events">
         {keys.map((event) => (
@@ -103,9 +115,13 @@ function ChangeTimeGroup({ group }) {
             {formatTime(group.created_at)}
           </time>
         </div>
-        <div className="change-summary">
-          <span className="change-pill change-pill-added">+{group.added_count} 新增</span>
-          <span className="change-pill change-pill-removed">-{group.removed_count} 移除</span>
+        <div className="change-summary change-summary-total">
+          <span className="change-pill change-pill-total change-pill-added">
+            +{group.added_count} 新增
+          </span>
+          <span className="change-pill change-pill-total change-pill-removed">
+            -{group.removed_count} 移除
+          </span>
         </div>
         <div className="change-provider-groups">
           {providers.map((provider) => (
