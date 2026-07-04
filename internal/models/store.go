@@ -18,34 +18,66 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) ReplaceKeyModels(providerID, keyID int64, items []Model) error {
+	synced := SyncedKeyModels{ProviderID: providerID, KeyID: keyID, Models: items}
+	return r.ReplaceSyncedKeyModels("key", []SyncedKeyModels{synced})
+}
+
+func (r *Repository) ReplaceSyncedKeyModels(scope string, items []SyncedKeyModels) error {
+	if len(items) == 0 {
+		return nil
+	}
 	return store.WithTx(nil, r.db, func(tx *sql.Tx) error {
-		oldIDs, err := modelIDSet(tx, keyID)
-		if err != nil {
-			return err
-		}
-		added, removed := diffModelIDs(oldIDs, items)
-		if len(added) > 0 || len(removed) > 0 {
-			if err := insertChangeEvent(tx, providerID, keyID, added, removed); err != nil {
+		var changes []changeToInsert
+		for _, item := range items {
+			if err := fillSyncedKeySnapshot(tx, &item); err != nil {
+				return err
+			}
+			oldIDs, err := modelIDSet(tx, item.KeyID)
+			if err != nil {
+				return err
+			}
+			added, removed := diffModelIDs(oldIDs, item.Models)
+			if len(added) > 0 || len(removed) > 0 {
+				changes = append(changes, changeToInsert{item: item, added: added, removed: removed})
+			}
+
+			if _, err := tx.Exec(`delete from model_cache where provider_key_id=?`, item.KeyID); err != nil {
+				return err
+			}
+			for _, model := range item.Models {
+				modelID := strings.TrimSpace(model.ID)
+				if modelID == "" {
+					continue
+				}
+				raw := model.RawJSON
+				if raw == "" {
+					raw = "{}"
+				}
+				_, err := tx.Exec(
+					`insert into model_cache (provider_id, provider_key_id, model_id, owned_by, raw_json) values (?, ?, ?, ?, ?)`,
+					item.ProviderID, item.KeyID, modelID, model.OwnedBy, raw,
+				)
+				if err != nil {
+					return err
+				}
+			}
+			if _, err := tx.Exec(
+				`update provider_keys set last_sync_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), last_sync_error='', updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') where provider_id=? and id=?`,
+				item.ProviderID, item.KeyID,
+			); err != nil {
 				return err
 			}
 		}
-		if _, err := tx.Exec(`delete from model_cache where provider_key_id=?`, keyID); err != nil {
+
+		if len(changes) == 0 {
+			return nil
+		}
+		runID, createdAt, err := insertChangeRun(tx, scope)
+		if err != nil {
 			return err
 		}
-		for _, item := range items {
-			modelID := strings.TrimSpace(item.ID)
-			if modelID == "" {
-				continue
-			}
-			raw := item.RawJSON
-			if raw == "" {
-				raw = "{}"
-			}
-			_, err := tx.Exec(
-				`insert into model_cache (provider_id, provider_key_id, model_id, owned_by, raw_json) values (?, ?, ?, ?, ?)`,
-				providerID, keyID, modelID, item.OwnedBy, raw,
-			)
-			if err != nil {
+		for _, change := range changes {
+			if err := insertChangeEvent(tx, runID, createdAt, change); err != nil {
 				return err
 			}
 		}
@@ -74,35 +106,41 @@ func (r *Repository) ListChangeEvents(limit int, beforeID int64) (ChangeEventsRe
 		limit = 20
 	}
 	rows, err := r.db.Query(`
-		select
-			id, provider_id, provider_key_id, provider_name, key_name, base_url,
-			added_count, removed_count, added_models, removed_models, created_at
-		from model_change_events
-		where (? = 0 or id < ?)
-		order by id desc
+		select id, created_at
+		from model_change_runs r
+		where (? = 0 or r.id < ?)
+		  and exists (select 1 from model_change_events e where e.run_id = r.id)
+		order by r.id desc
 		limit ?`, beforeID, beforeID, limit+1)
 	if err != nil {
 		return ChangeEventsResponse{}, err
 	}
 	defer rows.Close()
 
-	events := make([]ModelChangeEvent, 0, limit+1)
+	groups := make([]ModelChangeGroup, 0, limit+1)
 	for rows.Next() {
-		event, err := scanChangeEvent(rows)
-		if err != nil {
+		var group ModelChangeGroup
+		if err := rows.Scan(&group.ID, &group.CreatedAt); err != nil {
 			return ChangeEventsResponse{}, err
 		}
-		events = append(events, event)
+		groups = append(groups, group)
 	}
 	if err := rows.Err(); err != nil {
 		return ChangeEventsResponse{}, err
 	}
 
-	resp := ChangeEventsResponse{Events: events}
-	if len(events) > limit {
+	resp := ChangeEventsResponse{Groups: groups}
+	if len(groups) > limit {
 		resp.HasMore = true
-		resp.Events = events[:limit]
-		resp.NextBeforeID = resp.Events[len(resp.Events)-1].ID
+		resp.Groups = groups[:limit]
+		resp.NextBeforeID = resp.Groups[len(resp.Groups)-1].ID
+	}
+	if len(resp.Groups) == 0 {
+		return resp, nil
+	}
+
+	if err := r.loadChangeGroupEvents(&resp); err != nil {
+		return ChangeEventsResponse{}, err
 	}
 	return resp, nil
 }
@@ -231,57 +269,157 @@ func diffModelIDs(oldIDs map[string]struct{}, items []Model) ([]string, []string
 	return added, removed
 }
 
-func insertChangeEvent(tx *sql.Tx, providerID, keyID int64, added, removed []string) error {
-	var providerName, baseURL, keyName string
-	if err := tx.QueryRow(`
+type changeToInsert struct {
+	item    SyncedKeyModels
+	added   []string
+	removed []string
+}
+
+func fillSyncedKeySnapshot(tx *sql.Tx, item *SyncedKeyModels) error {
+	if item.ProviderName != "" && item.BaseURL != "" && item.KeyName != "" {
+		return nil
+	}
+	return tx.QueryRow(`
 		select p.name, p.base_url, k.name
 		from providers p
 		join provider_keys k on k.provider_id = p.id
-		where p.id=? and k.id=?`, providerID, keyID).Scan(&providerName, &baseURL, &keyName); err != nil {
-		return err
-	}
+		where p.id=? and k.id=?`, item.ProviderID, item.KeyID).Scan(
+		&item.ProviderName, &item.BaseURL, &item.KeyName,
+	)
+}
 
-	addedJSON, err := marshalModelIDList(added)
+func insertChangeRun(tx *sql.Tx, scope string) (int64, string, error) {
+	res, err := tx.Exec(`insert into model_change_runs (scope) values (?)`, scope)
+	if err != nil {
+		return 0, "", err
+	}
+	runID, err := res.LastInsertId()
+	if err != nil {
+		return 0, "", err
+	}
+	var createdAt string
+	if err := tx.QueryRow(`select created_at from model_change_runs where id=?`, runID).Scan(&createdAt); err != nil {
+		return 0, "", err
+	}
+	return runID, createdAt, nil
+}
+
+func insertChangeEvent(tx *sql.Tx, runID int64, createdAt string, change changeToInsert) error {
+	addedJSON, err := marshalModelIDList(change.added)
 	if err != nil {
 		return err
 	}
-	removedJSON, err := marshalModelIDList(removed)
+	removedJSON, err := marshalModelIDList(change.removed)
 	if err != nil {
 		return err
 	}
 
 	_, err = tx.Exec(`
 		insert into model_change_events (
-			provider_id, provider_key_id, provider_name, key_name, base_url,
-			added_count, removed_count, added_models, removed_models
-		) values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		providerID, keyID, providerName, keyName, baseURL,
-		len(added), len(removed), addedJSON, removedJSON,
+			run_id, provider_id, provider_key_id, provider_name, key_name, base_url,
+			added_count, removed_count, added_models, removed_models, created_at
+		) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		runID, change.item.ProviderID, change.item.KeyID,
+		change.item.ProviderName, change.item.KeyName, change.item.BaseURL,
+		len(change.added), len(change.removed), addedJSON, removedJSON, createdAt,
 	)
 	return err
 }
 
-func scanChangeEvent(rows *sql.Rows) (ModelChangeEvent, error) {
+func (r *Repository) loadChangeGroupEvents(resp *ChangeEventsResponse) error {
+	groupIndex := map[int64]int{}
+	runIDs := make([]int64, 0, len(resp.Groups))
+	for i := range resp.Groups {
+		groupIndex[resp.Groups[i].ID] = i
+		runIDs = append(runIDs, resp.Groups[i].ID)
+	}
+
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(runIDs)), ",")
+	args := make([]any, 0, len(runIDs))
+	for _, id := range runIDs {
+		args = append(args, id)
+	}
+	rows, err := r.db.Query(`
+		select
+			run_id, id, provider_id, provider_key_id, provider_name, key_name, base_url,
+			added_count, removed_count, added_models, removed_models, created_at
+		from model_change_events
+		where run_id in (`+placeholders+`)
+		order by run_id desc, provider_id, provider_key_id, id desc`, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	providerIndex := map[int64]map[int64]int{}
+	for rows.Next() {
+		runID, event, err := scanChangeEvent(rows)
+		if err != nil {
+			return err
+		}
+		gi, ok := groupIndex[runID]
+		if !ok {
+			continue
+		}
+		group := &resp.Groups[gi]
+		group.AddedCount += event.AddedCount
+		group.RemovedCount += event.RemovedCount
+
+		byProvider, ok := providerIndex[runID]
+		if !ok {
+			byProvider = map[int64]int{}
+			providerIndex[runID] = byProvider
+		}
+		pi, ok := byProvider[event.ProviderID]
+		if !ok {
+			group.Providers = append(group.Providers, ModelChangeProviderGroup{
+				ProviderID:   event.ProviderID,
+				ProviderName: event.ProviderName,
+				BaseURL:      event.BaseURL,
+			})
+			pi = len(group.Providers) - 1
+			byProvider[event.ProviderID] = pi
+		}
+		provider := &group.Providers[pi]
+		provider.AddedCount += event.AddedCount
+		provider.RemovedCount += event.RemovedCount
+		provider.Keys = append(provider.Keys, ModelChangeKeyEvent{
+			ID:            event.ID,
+			KeyID:         event.KeyID,
+			KeyName:       event.KeyName,
+			AddedCount:    event.AddedCount,
+			RemovedCount:  event.RemovedCount,
+			AddedModels:   event.AddedModels,
+			RemovedModels: event.RemovedModels,
+			CreatedAt:     event.CreatedAt,
+		})
+	}
+	return rows.Err()
+}
+
+func scanChangeEvent(rows *sql.Rows) (int64, ModelChangeEvent, error) {
+	var runID int64
 	var event ModelChangeEvent
 	var addedJSON, removedJSON string
 	if err := rows.Scan(
+		&runID,
 		&event.ID, &event.ProviderID, &event.KeyID, &event.ProviderName, &event.KeyName, &event.BaseURL,
 		&event.AddedCount, &event.RemovedCount, &addedJSON, &removedJSON, &event.CreatedAt,
 	); err != nil {
-		return ModelChangeEvent{}, err
+		return 0, ModelChangeEvent{}, err
 	}
 
 	added, err := parseModelIDList(addedJSON)
 	if err != nil {
-		return ModelChangeEvent{}, err
+		return 0, ModelChangeEvent{}, err
 	}
 	removed, err := parseModelIDList(removedJSON)
 	if err != nil {
-		return ModelChangeEvent{}, err
+		return 0, ModelChangeEvent{}, err
 	}
 	event.AddedModels = added
 	event.RemovedModels = removed
-	return event, nil
+	return runID, event, nil
 }
 
 func marshalModelIDList(items []string) (string, error) {

@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"path/filepath"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestOpenInitializesSchema(t *testing.T) {
 	}
 	defer db.Close()
 
-	tables := []string{"providers", "provider_keys", "model_cache", "model_change_events"}
+	tables := []string{"providers", "provider_keys", "model_cache", "model_change_runs", "model_change_events"}
 	for _, table := range tables {
 		var name string
 		err := db.QueryRow(`select name from sqlite_master where type='table' and name=?`, table).Scan(&name)
@@ -20,6 +21,51 @@ func TestOpenInitializesSchema(t *testing.T) {
 			t.Fatalf("expected table %s to exist: %v", table, err)
 		}
 	}
+}
+
+func TestOpenResetsLegacyModelChangeEvents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.db")
+	legacy, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("open legacy store: %v", err)
+	}
+	_, err = legacy.Exec(`create table model_change_events (
+		id integer primary key autoincrement,
+		provider_id integer not null,
+		provider_key_id integer not null,
+		provider_name text not null,
+		key_name text not null,
+		base_url text not null,
+		added_count integer not null default 0,
+		removed_count integer not null default 0,
+		added_models text not null default '[]',
+		removed_models text not null default '[]',
+		created_at text not null default (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+	)`)
+	if err != nil {
+		t.Fatalf("create legacy events: %v", err)
+	}
+	if _, err := legacy.Exec(`insert into model_change_events (provider_id, provider_key_id, provider_name, key_name, base_url) values (1, 1, 'P', 'K', 'https://example.com')`); err != nil {
+		t.Fatalf("insert legacy event: %v", err)
+	}
+	if err := legacy.Close(); err != nil {
+		t.Fatalf("close legacy store: %v", err)
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("open migrated store: %v", err)
+	}
+	defer db.Close()
+
+	ok, err := columnExists(db, "model_change_events", "run_id")
+	if err != nil {
+		t.Fatalf("check run_id column: %v", err)
+	}
+	if !ok {
+		t.Fatal("model_change_events.run_id should exist after migration")
+	}
+	assertCount(t, db, "model_change_events", 0)
 }
 
 func TestForeignKeysCascadeProviderDelete(t *testing.T) {

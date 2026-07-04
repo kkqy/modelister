@@ -646,6 +646,10 @@ input:focus {
   margin: 0;
   font-size: 15px;
 }
+.timeline-title h4 {
+  margin: 0;
+  font-size: 14px;
+}
 .timeline-key {
   color: var(--text-dim);
   font-size: 13px;
@@ -697,9 +701,30 @@ input:focus {
   gap: 12px;
   margin-top: 14px;
 }
+.change-provider-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+.change-provider-group {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+.change-provider-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
 .change-key-event {
   border-top: 1px solid var(--border-soft);
   padding-top: 12px;
+}
+.change-provider-group .change-key-event:first-child {
+  border-top: none;
+  padding-top: 0;
 }
 .change-key-head {
   display: flex;

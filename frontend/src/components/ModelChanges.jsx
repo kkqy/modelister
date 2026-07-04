@@ -7,35 +7,6 @@ import { Spinner } from "./ui.jsx";
 const PAGE_SIZE = 20;
 const MODEL_PREVIEW_LIMIT = 24;
 
-function groupChangeEvents(events) {
-  const groups = [];
-  const indexByProvider = new Map();
-
-  for (const event of events) {
-    const groupKey = String(event.provider_id || event.provider_name || event.base_url || "unknown");
-    let group = indexByProvider.get(groupKey);
-    if (!group) {
-      group = {
-        key: groupKey,
-        provider_name: event.provider_name,
-        base_url: event.base_url,
-        created_at: event.created_at,
-        added_count: 0,
-        removed_count: 0,
-        events: [],
-      };
-      groups.push(group);
-      indexByProvider.set(groupKey, group);
-    }
-
-    group.added_count += event.added_count || 0;
-    group.removed_count += event.removed_count || 0;
-    group.events.push(event);
-  }
-
-  return groups;
-}
-
 function ChangeModelList({ title, models, count, tone }) {
   if (!count) return null;
 
@@ -88,30 +59,60 @@ function ChangeEventDetail({ event }) {
   );
 }
 
-function ChangeProviderGroup({ group }) {
+function ChangeProviderGroup({ provider }) {
+  const keys = provider.keys || [];
+
+  return (
+    <section className="change-provider-group">
+      <div className="change-provider-head">
+        <div className="timeline-title">
+          <h4>{provider.provider_name}</h4>
+          <span className="timeline-key">{keys.length} 条 Key 变动</span>
+        </div>
+        <ProviderUrlLink url={provider.base_url} />
+      </div>
+      <div className="change-summary">
+        <span className="change-pill change-pill-added">+{provider.added_count} 新增</span>
+        <span className="change-pill change-pill-removed">-{provider.removed_count} 移除</span>
+      </div>
+      <div className="change-key-events">
+        {keys.map((event) => (
+          <ChangeEventDetail event={event} key={event.id} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ChangeTimeGroup({ group }) {
+  const providers = group.providers || [];
+  const keyCount = providers.reduce((sum, provider) => sum + (provider.keys || []).length, 0);
+
   return (
     <article className="timeline-item">
       <div className="timeline-dot" aria-hidden="true" />
       <div className="timeline-content">
         <div className="timeline-head">
           <div className="timeline-title">
-            <h3>{group.provider_name}</h3>
-            <span className="timeline-key">{group.events.length} 条 Key 变动</span>
+            <h3>{formatTime(group.created_at)}</h3>
+            <span className="timeline-key">
+              {providers.length} 个供应商 / {keyCount} 条 Key 变动
+            </span>
           </div>
           <time className="timeline-time" dateTime={group.created_at}>
-            最近 {formatTime(group.created_at)}
+            {formatTime(group.created_at)}
           </time>
-        </div>
-        <div className="timeline-meta">
-          <ProviderUrlLink url={group.base_url} />
         </div>
         <div className="change-summary">
           <span className="change-pill change-pill-added">+{group.added_count} 新增</span>
           <span className="change-pill change-pill-removed">-{group.removed_count} 移除</span>
         </div>
-        <div className="change-key-events">
-          {group.events.map((event) => (
-            <ChangeEventDetail event={event} key={event.id} />
+        <div className="change-provider-groups">
+          {providers.map((provider) => (
+            <ChangeProviderGroup
+              provider={provider}
+              key={provider.provider_id || provider.provider_name || provider.base_url}
+            />
           ))}
         </div>
       </div>
@@ -120,7 +121,7 @@ function ChangeProviderGroup({ group }) {
 }
 
 export default function ModelChanges({ toast, onUnauthorized }) {
-  const [events, setEvents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [hasMore, setHasMore] = useState(false);
   const [nextBeforeId, setNextBeforeId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -144,8 +145,8 @@ export default function ModelChanges({ toast, onUnauthorized }) {
       }
       try {
         const res = await api.listModelChanges({ limit: PAGE_SIZE, beforeId });
-        const pageEvents = res.events || [];
-        setEvents((current) => (firstPage ? pageEvents : [...current, ...pageEvents]));
+        const pageGroups = res.groups || [];
+        setGroups((current) => (firstPage ? pageGroups : [...current, ...pageGroups]));
         setHasMore(Boolean(res.has_more));
         setNextBeforeId(res.next_before_id || null);
       } catch (err) {
@@ -179,15 +180,15 @@ export default function ModelChanges({ toast, onUnauthorized }) {
         </div>
       </div>
 
-      {loading && events.length === 0 ? (
+      {loading && groups.length === 0 ? (
         <Spinner label="加载变动记录…" />
-      ) : events.length === 0 ? (
+      ) : groups.length === 0 ? (
         <div className="empty">暂无模型变动记录。有 Key 刷新出新增或移除模型后会出现在这里。</div>
       ) : (
         <>
           <div className="timeline">
-            {groupChangeEvents(events).map((group) => (
-              <ChangeProviderGroup group={group} key={group.key} />
+            {groups.map((group) => (
+              <ChangeTimeGroup group={group} key={group.id} />
             ))}
           </div>
           {hasMore && (

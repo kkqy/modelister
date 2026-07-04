@@ -37,19 +37,8 @@ func (s *SyncService) SyncKey(providerID, keyID int64) SyncResult {
 		_ = s.modelRepo.SetKeySyncError(providerID, keyID, msg)
 		return SyncResult{ProviderID: providerID, KeyID: keyID, OK: false, Error: msg}
 	}
-	items, err := s.fetchModels(p.BaseURL, k.APIKey)
-	if err != nil {
-		_ = s.modelRepo.SetKeySyncError(providerID, keyID, err.Error())
-		return SyncResult{ProviderID: providerID, KeyID: keyID, OK: false, Error: err.Error()}
-	}
-	if err := s.modelRepo.ReplaceKeyModels(providerID, keyID, items); err != nil {
-		_ = s.modelRepo.SetKeySyncError(providerID, keyID, err.Error())
-		return SyncResult{ProviderID: providerID, KeyID: keyID, OK: false, Error: err.Error()}
-	}
-	if err := s.modelRepo.SetKeySyncSuccess(providerID, keyID); err != nil {
-		return SyncResult{ProviderID: providerID, KeyID: keyID, OK: false, Error: err.Error()}
-	}
-	return SyncResult{ProviderID: providerID, KeyID: keyID, OK: true, Count: len(items)}
+	results := s.syncEnabledKeys("key", []providers.ProviderWithKey{{Provider: p, Key: k}})
+	return results[0]
 }
 
 func (s *SyncService) SyncProvider(providerID int64) []SyncResult {
@@ -57,13 +46,13 @@ func (s *SyncService) SyncProvider(providerID int64) []SyncResult {
 	if err != nil {
 		return []SyncResult{{ProviderID: providerID, OK: false, Error: err.Error()}}
 	}
-	var results []SyncResult
+	var targets []providers.ProviderWithKey
 	for _, item := range items {
 		if item.Provider.ID == providerID {
-			results = append(results, s.SyncKey(item.Provider.ID, item.Key.ID))
+			targets = append(targets, item)
 		}
 	}
-	return results
+	return s.syncEnabledKeys("provider", targets)
 }
 
 func (s *SyncService) SyncAll() []SyncResult {
@@ -71,9 +60,46 @@ func (s *SyncService) SyncAll() []SyncResult {
 	if err != nil {
 		return []SyncResult{{OK: false, Error: err.Error()}}
 	}
-	results := make([]SyncResult, 0, len(items))
-	for _, item := range items {
-		results = append(results, s.SyncKey(item.Provider.ID, item.Key.ID))
+	return s.syncEnabledKeys("all", items)
+}
+
+func (s *SyncService) syncEnabledKeys(scope string, targets []providers.ProviderWithKey) []SyncResult {
+	results := make([]SyncResult, 0, len(targets))
+	synced := make([]SyncedKeyModels, 0, len(targets))
+
+	for _, target := range targets {
+		result := SyncResult{ProviderID: target.Provider.ID, KeyID: target.Key.ID}
+		items, err := s.fetchModels(target.Provider.BaseURL, target.Key.APIKey)
+		if err != nil {
+			_ = s.modelRepo.SetKeySyncError(target.Provider.ID, target.Key.ID, err.Error())
+			result.OK = false
+			result.Error = err.Error()
+			results = append(results, result)
+			continue
+		}
+		result.OK = true
+		result.Count = len(items)
+		results = append(results, result)
+		synced = append(synced, SyncedKeyModels{
+			ProviderID:   target.Provider.ID,
+			ProviderName: target.Provider.Name,
+			BaseURL:      target.Provider.BaseURL,
+			KeyID:        target.Key.ID,
+			KeyName:      target.Key.Name,
+			Models:       items,
+		})
+	}
+
+	if err := s.modelRepo.ReplaceSyncedKeyModels(scope, synced); err != nil {
+		for i := range results {
+			if !results[i].OK {
+				continue
+			}
+			_ = s.modelRepo.SetKeySyncError(results[i].ProviderID, results[i].KeyID, err.Error())
+			results[i].OK = false
+			results[i].Error = err.Error()
+			results[i].Count = 0
+		}
 	}
 	return results
 }

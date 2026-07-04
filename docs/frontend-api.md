@@ -281,23 +281,37 @@
 - `limit`：每页数量，默认 `20`，取值范围 `1` 到 `100`。
 - `before_id`：可选。传入上一页响应的 `next_before_id` 后，按从新到旧继续加载更早记录。
 
-响应按 `id` 从大到小返回，不提供全量读取接口，管理后台应按需加载下一页。
+响应按同步批次 `id` 从大到小返回，不提供全量读取接口，管理后台应按需加载下一页。每个批次是一条时间轴项目，批次内已经按供应商和 Key 组织好，前端不需要再按时间或供应商自行聚合。
 
 ```json
 {
-  "events": [
+  "groups": [
     {
       "id": 12,
-      "provider_id": 1,
-      "key_id": 3,
-      "provider_name": "OpenAI",
-      "key_name": "生产 Key",
-      "base_url": "https://api.openai.com",
+      "created_at": "2026-06-20T10:05:00.000Z",
       "added_count": 1,
       "removed_count": 2,
-      "added_models": ["gpt-4.1"],
-      "removed_models": ["gpt-4o", "gpt-4o-mini"],
-      "created_at": "2026-06-20T10:05:00.000Z"
+      "providers": [
+        {
+          "provider_id": 1,
+          "provider_name": "OpenAI",
+          "base_url": "https://api.openai.com",
+          "added_count": 1,
+          "removed_count": 2,
+          "keys": [
+            {
+              "id": 33,
+              "key_id": 3,
+              "key_name": "生产 Key",
+              "added_count": 1,
+              "removed_count": 2,
+              "added_models": ["gpt-4.1"],
+              "removed_models": ["gpt-4o", "gpt-4o-mini"],
+              "created_at": "2026-06-20T10:05:00.000Z"
+            }
+          ]
+        }
+      ]
     }
   ],
   "has_more": true,
@@ -305,7 +319,7 @@
 }
 ```
 
-`provider_name`、`key_name` 和 `base_url` 是写入事件时的快照，用于后台时间轴展示。当前比较口径是模型 ID 集合的新增/移除，不比较 `owned_by` 或原始模型 JSON 的元数据变化。
+`next_before_id` 指向下一页之前的同步批次 ID。`provider_name`、`key_name` 和 `base_url` 是写入事件时的快照，用于后台时间轴展示。当前比较口径是模型 ID 集合的新增/移除，不比较 `owned_by` 或原始模型 JSON 的元数据变化。
 
 ## 模型列表 API
 
